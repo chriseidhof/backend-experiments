@@ -15,8 +15,7 @@ let package = Package(
             targets: ["Backend"]),
     ],
     dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
+        .package(url: "https://github.com/swhitty/FlyingFox.git", .upToNextMajor(from: "0.10.0"))
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -24,8 +23,20 @@ let package = Package(
         .target(
             name: "Backend",
             dependencies: []),
+        .executableTarget(
+            name: "BackendFF",
+            dependencies: [
+                "FlyingFox",
+                "Backend"
+            ]),
+        .target(
+            name: "URLEncoder",
+            dependencies: []),
         .testTarget(
             name: "BackendTests",
-            dependencies: ["Backend"]),
+            dependencies: ["Backend", "URLEncoder"]),
+        .testTarget(
+            name: "URLEncoderTests",
+            dependencies: ["URLEncoder"]),
     ]
 )

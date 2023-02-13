@@ -1,5 +1,6 @@
 import XCTest
 @testable import Backend
+import URLEncoder
 
 extension Response {
     var str: String {
@@ -8,54 +9,61 @@ extension Response {
 }
 
 struct Hello: Rule {
-    var body: String {
+    var rules: some Rule {
         "Hello"
-    }
-}
-
-struct Text: Rule {
-    var text: String
-    init(_ text: String) {
-        self.text = text
-    }
-
-    var body: String {
-        text
     }
 }
 
 struct Profile: Rule {
     var id: String
+    var route: ProfileRoute?
 
     var rules: some Rule {
-        Path("edit") { Text("Edit") }
-        Path("delete") { Text("Delete") }
-    }
-
-    var body: String {
-        "Profile"
+        if let r = route {
+            switch r {
+            case .index: "Profile"
+            case .edit: "Edit"
+            case .delete: "Delete"
+            }
+        }
     }
 }
 
 struct Users: Rule {
+    var route: UsersRoute?
     var rules: some Rule {
-        ReadPath { str in
-            Profile(id: str)
+        if let r = route, case let .profile(id, route) = r {
+            Profile(id: id, route: route)
+        } else {
+            "User List"
         }
-    }
-
-    var body: String {
-        "User List"
     }
 }
 
-enum ProfileRoute: Hashable {
+enum ProfileRoute: Hashable, Codable {
+    case index
     case edit
     case delete
 }
 
-enum UsersRoute: Hashable {
-    case profile(id: String, ProfileRoute)
+enum UsersRoute: Hashable, Codable {
+    case index
+    case profile(String, ProfileRoute)
+}
+
+extension Rule {
+    func test(route: UsersRoute) async throws -> Response? {
+        let path = try encode(route)
+        return try await execute(environment: .init(request: .init(path: path)))
+    }
+}
+
+extension Users {
+    func parse(_ path: String) async throws -> Response? {
+        var copy = self
+        copy.route = try decode(path)
+        return try await copy.execute(environment: .init(request: .init(path: path)))
+    }
 }
 
 final class BackendTests: XCTestCase {
@@ -65,19 +73,22 @@ final class BackendTests: XCTestCase {
     }
 
     func testUsers() async throws {
-        let response = try await Users().test("/")
+        let response = try await Users().parse("/")
         XCTAssertEqual(response?.str, "User List")
 
-        let response1 = try await Users().test("/florian")
+        let response1 = try await Users().parse("/profile/florian/index")
         XCTAssertEqual(response1?.str, "Profile")
 
-        let response2 = try await Users().test("/florian/edit")
+        let response2 = try await Users().parse("/profile/florian/edit")
         XCTAssertEqual(response2?.str, "Edit")
 
-        let response3 = try await Users().test("/florian/delete")
+        let response3 = try await Users().parse("/profile/florian/delete")
         XCTAssertEqual(response3?.str, "Delete")
 
-        let response4 = try await Users().test("/florian/foo")
-        XCTAssertEqual(response4, nil)
+        do {
+            let response4 = try await Users().parse("/profile/florian/foo")
+            XCTFail()
+        } catch {
+        }
     }
 }

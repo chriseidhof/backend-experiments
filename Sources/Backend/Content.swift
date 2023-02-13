@@ -1,11 +1,11 @@
 import Foundation
 
-protocol Content {
+public protocol Content {
     var toData: Data { get }
 }
 
 extension String: Content {
-    var toData: Data {
+    public var toData: Data {
         data(using: .utf8)!
     }
 }

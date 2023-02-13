@@ -15,7 +15,7 @@ extension EnvironmentValues {
 struct ReadTitle: Rule {
     @Environment(\.title) var title
 
-    var body: String {
+    var rules: some Rule {
         title
     }
 }

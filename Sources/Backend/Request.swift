@@ -1,9 +1,15 @@
 import Foundation
 
 public struct Request {
-    var path: String
-    var headers: [(key: String, value: String)] = []
-    var body: Data? = nil
+    public init(path: String, headers: [(key: String, value: String)] = [], body: Data? = nil) {
+        self.path = path
+        self.headers = headers
+        self.body = body
+    }
+
+    public var path: String
+    public var headers: [(key: String, value: String)] = []
+    public var body: Data? = nil
 }
 
 public enum StatusCode: Int {
@@ -11,6 +17,7 @@ public enum StatusCode: Int {
 }
 
 public struct Response: Hashable {
-    var statusCode: StatusCode = .ok
-    var body: Data = Data()
+    public var statusCode: StatusCode = .ok
+    public var body: Data = Data()
 }
+

@@ -1,25 +1,32 @@
 import Foundation
 
-protocol Rule {
+public protocol Rule {
     associatedtype Rules: Rule
     @RuleBuilder var rules: Rules { get }
-
-    associatedtype Body: Content
-    var body: Body { get }
 }
 
 protocol BuiltinRule {
     func execute(environment: EnvironmentValues) async throws -> Response?
 }
 
-extension Rule {
-    var rules: EmptyRules {
-        EmptyRules()
+extension BuiltinRule {
+    public var rules: Never {
+        fatalError()
+    }
+}
+
+extension Response: Rule, BuiltinRule {
+    func execute(environment: EnvironmentValues) async throws -> Response? {
+        return self
     }
 }
 
 @resultBuilder
-struct RuleBuilder {
+public struct RuleBuilder {
+    public static func buildPartialBlock(first: some Content) -> some Rule {
+        Response(statusCode: .ok, body: first.toData)
+    }
+
     public static func buildPartialBlock(first: some Rule) -> some Rule {
         first
     }
@@ -28,8 +35,20 @@ struct RuleBuilder {
         RulePair(r1: accumulated, r2: next)
     }
 
+    public static func buildPartialBlock(accumulated: some Rule, next: some Content) -> some Rule {
+        RulePair(r1: accumulated, r2: Response(body: next.toData))
+    }
+
     static func buildOptional(_ component: (some Rule)?) -> some Rule {
         component
+    }
+
+    static func buildEither<L, R>(first component: L) -> Either<L, R> {
+        .left(component)
+
+    }
+    static func buildEither<L, R>(second component: R) -> Either<L, R> {
+        .right(component)
     }
 }
 
@@ -39,9 +58,9 @@ extension Optional: BuiltinRule, Rule where Wrapped: Rule {
     }
 }
 
-struct RulePair<R1: Rule, R2: Rule>: BuiltinRule, Rule {
-    var r1: R1
-    var r2: R2
+public struct RulePair<R1: Rule, R2: Rule>: BuiltinRule, Rule {
+    public var r1: R1
+    public var r2: R2
 
     func execute(environment: EnvironmentValues) async throws -> Response? {
         if let r = try await r1.execute(environment: environment) {
@@ -51,7 +70,20 @@ struct RulePair<R1: Rule, R2: Rule>: BuiltinRule, Rule {
     }
 }
 
-struct EmptyRules: BuiltinRule, Rule {
+public enum Either<R1: Rule, R2: Rule>: BuiltinRule, Rule {
+    case left(R1)
+    case right(R2)
+
+    func execute(environment: EnvironmentValues) async throws -> Response? {
+        switch self {
+        case .left(let l): return try await l.execute(environment: environment)
+        case .right(let r): return try await r.execute(environment: environment)
+        }
+    }
+}
+
+
+public struct EmptyRules: BuiltinRule, Rule {
     func execute(environment: EnvironmentValues) async throws -> Response? {
         return nil
     }
@@ -64,11 +96,11 @@ extension Never: BuiltinRule, Rule {
 }
 
 extension Never: Content {
-    var toData: Data { fatalError() }
+    public var toData: Data { fatalError() }
 }
 
 extension Optional: Content where Self: Content {
-    var toData: Data { Data() } // todo
+    public var toData: Data { Data() } // todo
 }
 
 extension Rule {
@@ -80,21 +112,18 @@ extension Rule {
         }
     }
 
-    func execute(environment: EnvironmentValues) async throws -> Response? {
+    public func execute(environment: EnvironmentValues) async throws -> Response? {
         if let s = self as? BuiltinRule {
             return try await s.execute(environment: environment)
         }
         install(environment: environment)
-        if environment.remainingPathComponents.isEmpty {
-            return Response(statusCode: .ok, body: body.toData)
-        }
         return try await rules.execute(environment: environment)
     }
 }
 
-extension BuiltinRule {
-    var body: Never {
-        fatalError()
+extension Rule {
+    public func path(_ component: String) -> some Rule {
+        Path(component, content: { self })
     }
 }
 
@@ -114,24 +143,20 @@ struct Path<R: Rule>: Rule {
             }
         }
     }
-
-    var body: Never {
-        fatalError()
-    }
 }
 
-struct ReadPath<Content: Rule>: Rule {
+public struct ReadPath<Content: Rule>: Rule {
     @RuleBuilder var content: (String) -> Content
     @Environment(\.remainingPathComponents) var remaining
 
-    var rules: some Rule {
+    public init(@RuleBuilder content: @escaping (String) -> Content) {
+        self.content = content
+    }
+
+    public var rules: some Rule {
         if let c = remaining.first {
             content(c)
                 .environment(\.remainingPathComponents, value: Array(remaining.dropFirst()))
         }
-    }
-
-    var body: Never {
-        fatalError()
     }
 }
