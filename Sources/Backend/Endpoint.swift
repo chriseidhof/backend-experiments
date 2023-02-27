@@ -5,6 +5,37 @@ public protocol Rule {
     @RuleBuilder var rules: Rules { get }
 }
 
+public protocol RuleModifier {
+    associatedtype Rules: Rule
+    @RuleBuilder func rule(_ other: AnyRule) -> Rules
+}
+
+public struct AnyRule: Rule, BuiltinRule {
+    let _execute: (EnvironmentValues) async throws -> Response?
+    public init<R: Rule>(_ rule: R) {
+        _execute = { try await rule.execute(environment: $0) }
+    }
+
+    func execute(environment: EnvironmentValues) async throws -> Response? {
+        try await _execute(environment)
+    }
+}
+
+struct Modified<R: Rule, M: RuleModifier>: Rule {
+    var content: R
+    var modifier: M
+
+    var rules: some Rule {
+        modifier.rule(AnyRule(content))
+    }
+}
+
+extension Rule {
+    func modifier<M: RuleModifier>(_ modifier: M) -> some Rule {
+        Modified<Self, M>(content: self, modifier: modifier)
+    }
+}
+
 protocol BuiltinRule {
     func execute(environment: EnvironmentValues) async throws -> Response?
 }
@@ -123,20 +154,18 @@ extension Rule {
 
 extension Rule {
     public func path(_ component: String) -> some Rule {
-        Path(component, content: { self })
+        modifier(Path(component))
     }
 }
 
-struct Path<R: Rule>: Rule {
-    init(_ component: String, @RuleBuilder content: () -> R) {
+struct Path: RuleModifier {
+    init(_ component: String) {
         self.component = component
-        self.content = content()
     }
 
     var component: String
-    @RuleBuilder var content: R
 
-    var rules: some Rule {
+    func rule(_ content: AnyRule) -> some Rule {
         ReadPath { c in
             if c == component {
                 content
