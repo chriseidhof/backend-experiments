@@ -1,5 +1,5 @@
 import XCTest
-@testable import Backend
+@testable import EndpointBuilder
 import URLEncoder
 
 extension Response {

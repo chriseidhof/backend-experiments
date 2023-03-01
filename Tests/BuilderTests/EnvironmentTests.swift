@@ -1,5 +1,5 @@
 import XCTest
-@testable import Backend
+@testable import EndpointBuilder
 
 struct TitleKey: EnvironmentKey {
     static var defaultValue: String = "Default Title"

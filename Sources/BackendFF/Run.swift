@@ -1,5 +1,5 @@
 import FlyingFox
-import Backend
+import EndpointBuilder
 
 struct Nested: Rule {
     var rules: some Rule {
