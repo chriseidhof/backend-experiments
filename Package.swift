@@ -27,7 +27,8 @@ let package = Package(
             name: "BackendFF",
             dependencies: [
                 "FlyingFox",
-                "EndpointBuilder"
+                "EndpointBuilder",
+                "URLEncoder",
             ]),
         .target(
             name: "URLEncoder",

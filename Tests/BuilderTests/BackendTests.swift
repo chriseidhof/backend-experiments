@@ -9,7 +9,7 @@ extension Response {
 }
 
 struct Hello: Rule {
-    var rules: some Rule {
+    func rules() -> some Rule {
         "Hello"
     }
 }
@@ -18,7 +18,7 @@ struct Profile: Rule {
     var id: String
     var route: ProfileRoute?
 
-    var rules: some Rule {
+    func rules() -> some Rule {
         if let r = route {
             switch r {
             case .index: "Profile"
@@ -31,7 +31,7 @@ struct Profile: Rule {
 
 struct Users: Rule {
     var route: UsersRoute?
-    var rules: some Rule {
+    func rules() -> some Rule {
         if let r = route, case let .profile(id, route) = r {
             Profile(id: id, route: route)
         } else {

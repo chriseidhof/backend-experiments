@@ -27,8 +27,14 @@ public protocol EnvironmentKey {
     static var defaultValue: Value { get }
 }
 
-protocol DynamicProperty {
+public protocol DynamicProperty {
     func install(environment: EnvironmentValues)
+}
+
+extension DynamicProperty {
+    public func install(environment: EnvironmentValues) {
+        install_(environment: environment, on: self)
+    }
 }
 
 final class Box<A> {
@@ -42,7 +48,7 @@ final class Box<A> {
     var keyPath: KeyPath<EnvironmentValues, Value>
     var box: Box<EnvironmentValues?> = Box(nil)
 
-    func install(environment: EnvironmentValues) {
+    public func install(environment: EnvironmentValues) {
         box.value = environment
     }
 
